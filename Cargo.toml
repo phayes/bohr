@@ -1,0 +1,23 @@
+[package]
+name = "bohr"
+description = "A simple toy chemistry library"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uneval = "0.2.4"
+serde-big-array = "0.5"
+dimensioned = "0.8"
+approx = "0.5.1"
+lazy_static = "1.4.0"
+regex = "1"
+
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+uneval = "0.2.4"
+serde_json = "1"
+serde-big-array = "0.5"
