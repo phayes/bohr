@@ -12,7 +12,9 @@ type JoulePerKelvinPerMole = Quot<si::JoulePerKelvin<f64>, si::Mole<f64>>;
 type KGPerM3 = Quot<si::Kilogram<f64>, si::Meter3<f64>>;
 pub use dimensioned::unit_systems::si::f64consts::EV;
 
-#[derive(Serialize, Deserialize)]
+use crate::orbitals::ElectronConfiguration;
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PeriodicElement<'a> {
     pub name: &'a str,
     pub appearance: Option<&'a str>,
@@ -39,8 +41,8 @@ pub struct PeriodicElement<'a> {
     pub wxpos: u32,
     pub wypos: u32,
     pub shells: Vec<u32>,
-    pub electron_configuration: &'a str,
-    pub electron_configuration_semantic: &'a str,
+    pub electron_configuration: ElectronConfiguration,
+    pub electron_configuration_semantic: ElectronConfiguration,
     pub electron_affinity: Option<f64>,
     pub electronegativity_pauling: Option<f64>,
     pub ionization_energies: Vec<f64>,
@@ -89,7 +91,7 @@ impl<'a> PeriodicElement<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PeriodicImage<'a> {
     pub title: &'a str,
     pub url: &'a str,

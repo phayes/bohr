@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{orbitals::ElectronConfiguration, periodictable::PeriodicElement};
 
 pub struct Atom {
@@ -501,6 +503,28 @@ impl Element {
         let periodic_element = table.get(self.atomic_number()).unwrap();
         periodic_element
     }
+
+    #[cfg(test)]
+    pub (crate) fn periodic_data_owned(&self) -> PeriodicElement {
+        let table = crate::periodictable::periodic_table();
+        let periodic_element = table.get(self.atomic_number()).unwrap();
+        periodic_element.clone()
+    }
+
+    // TODO: Use an array instead of a vector
+    pub fn all() -> Vec<Element> {
+        let mut vec = Vec::with_capacity(118);
+        for i in 1..=118 {
+            vec.push(unsafe { std::mem::transmute(i as u8) });
+        }
+        vec
+    }
+}
+
+impl Display for Element {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.symbol())
+    }
 }
 
 impl TryFrom<u8> for Element {
@@ -651,6 +675,7 @@ impl std::str::FromStr for Element {
             "Lv" => Ok(Self::Livermorium),
             "Ts" => Ok(Self::Tennessine),
             "Og" => Ok(Self::Oganesson),
+            "Uuo" => Ok(Self::Oganesson),
             "Hydrogen" => Ok(Self::Hydrogen),
             "Helium" => Ok(Self::Helium),
             "Lithium" => Ok(Self::Lithium),

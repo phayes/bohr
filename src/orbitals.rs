@@ -1,6 +1,7 @@
 use crate::Element;
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use std::num::NonZeroU8;
 
@@ -329,7 +330,7 @@ const AUFBAU_SUBSHELLS: [Subshell; 19] = [
 
 lazy_static! {
     static ref ANOMALOUS_NEUTRAL_ELECTRON_CONFIGURATIONS: HashMap<Element, ElectronConfiguration> = {
-        let mut map = HashMap::with_capacity(19);
+        let mut map = HashMap::with_capacity(20);
 
         map.insert(
             Element::Chromium,
@@ -429,11 +430,22 @@ lazy_static! {
                 .parse()
                 .unwrap(),
         );
+        map.insert(
+            Element::Lawrencium,
+            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 4f¹⁴ 5s² 5p⁶ 5d¹⁰ 5f¹⁴ 6s² 6p⁶ 7s² 7p¹"
+                .parse()
+                .unwrap(),
+        );
+
         map
     };
     static ref NOBLE_GAS_ELECTRON_CONFIGURATIONS: Vec<(Element, ElectronConfiguration)> = {
-        let mut nobles = Vec::with_capacity(6);
+        let mut nobles = Vec::with_capacity(7);
 
+        nobles.push((
+            Element::Oganesson,
+            ElectronConfiguration::aufbau(Element::Oganesson.atomic_number()),
+        ));
         nobles.push((
             Element::Radon,
             ElectronConfiguration::aufbau(Element::Radon.atomic_number()),
@@ -608,6 +620,7 @@ impl ElectronConfiguration {
         diff
     }
 
+    /// Display the electron configuration in long-form format, e.g. "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d⁵"
     pub fn long_form(&self) -> String {
         use std::fmt::Write;
 
@@ -690,6 +703,33 @@ impl std::str::FromStr for ElectronConfiguration {
             return Err(());
         }
         Ok(Self { subshells })
+    }
+}
+
+impl From<&str> for ElectronConfiguration {
+    fn from(s: &str) -> Self {
+        s.parse().unwrap()
+    }
+}
+
+impl<'de> Deserialize<'de> for ElectronConfiguration {
+    fn deserialize<D>(deserializer: D) -> Result<ElectronConfiguration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Use from_str to deserialize
+        let s = String::deserialize(deserializer)?;
+        s.parse()
+            .map_err(|_| serde::de::Error::custom("Invalid electron configuration format"))
+    }
+}
+
+impl Serialize for ElectronConfiguration {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 
@@ -795,8 +835,21 @@ mod tests {
             Element::Oganesson.electron_configuration().to_string(),
             oganesson_electron_config.to_string()
         );
-    }
 
+        // Test all computed configurations against known configurations in the periotic table
+        for element in Element::all() {
+            let computed_config = element.electron_configuration();
+            let periotic_data = element.periodic_data_owned();
+            let known_config = periotic_data.electron_configuration;
+            assert_eq!(
+                computed_config.to_string(),
+                known_config.to_string(),
+                "{} - should be: {}",
+                element,
+                known_config.long_form()
+            );
+        }
+    }
 
     #[test]
     fn test_hunds_rule() {
@@ -812,13 +865,15 @@ mod tests {
         assert_eq!(oxygen_2p.num_full_orbitals(), 1);
         assert_eq!(oxygen_2p.num_empty_orbitals(), 0);
 
-        let fluorine_2p: FilledSubshell = Element::Fluorine.electron_configuration().last_subshell();
+        let fluorine_2p: FilledSubshell =
+            Element::Fluorine.electron_configuration().last_subshell();
         assert_eq!(fluorine_2p.num_electrons, 5);
         assert_eq!(fluorine_2p.unpaired_electrons(), 1);
         assert_eq!(fluorine_2p.num_full_orbitals(), 2);
         assert_eq!(fluorine_2p.num_empty_orbitals(), 0);
 
-        let hydrogen_1s: FilledSubshell = Element::Hydrogen.electron_configuration().last_subshell();
+        let hydrogen_1s: FilledSubshell =
+            Element::Hydrogen.electron_configuration().last_subshell();
         assert_eq!(hydrogen_1s.num_electrons, 1);
         assert_eq!(hydrogen_1s.unpaired_electrons(), 1);
         assert_eq!(hydrogen_1s.num_full_orbitals(), 0);
