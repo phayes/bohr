@@ -1,6 +1,11 @@
 use std::fmt::Display;
 
-use crate::{orbitals::ElectronConfiguration, periodictable::PeriodicElement};
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    periodictable::PERIODIC_TABLE, orbitals::ElectronConfiguration,
+    periodictable::PeriodicData, Block,
+};
 
 pub struct Atom {
     pub element: Element,
@@ -13,7 +18,6 @@ pub struct Atom {
 }
 
 impl Atom {
-    
     #[inline(always)]
     pub fn protons(&self) -> u8 {
         self.element.atomic_number()
@@ -109,23 +113,20 @@ impl Atom {
     pub fn is_isoelectronic(&self, other: Self) -> bool {
         if self.electrons != other.electrons {
             // If the number of electrons is different, they cannot be isoelectronic
-            return false
-        }
-        else if self.protons() < 20 && self.electrons < 20 {
+            return false;
+        } else if self.protons() < 20 && self.electrons < 20 {
             // For atoms with 20 or fewer protons and electrons, just check the number of electrons
-            return self.electrons == other.electrons
-        }
-        else if self.protons() == other.protons() && self.electrons == other.electrons {
+            return self.electrons == other.electrons;
+        } else if self.protons() == other.protons() && self.electrons == other.electrons {
             // If the atoms are the same (ignoring neutrons), they are isoelectronic
-            return true
-        }
-        else {
+            return true;
+        } else {
             // We actually need to check the electron configuration
             // TODO: This will currently fail for ions of over 20 protons and electrons
-            return self.electron_configuration() == other.electron_configuration()
+            return self.electron_configuration() == other.electron_configuration();
         }
     }
-    
+
     pub fn electron_configuration(&self) -> ElectronConfiguration {
         ElectronConfiguration::new(self.element, self.electrons)
     }
@@ -327,10 +328,6 @@ impl Element {
         (*self) as u8
     }
 
-    pub fn electron_configuration(&self) -> ElectronConfiguration {
-        ElectronConfiguration::new(*self, self.atomic_number())
-    }
-
     pub fn symbol(&self) -> &str {
         match self {
             Self::Hydrogen => "H",
@@ -456,30 +453,24 @@ impl Element {
 
     /// Get the nearest noble gas that occurs before this element.
     /// If this element is a noble gas, it will return the element directly above it in the periotic table.
-    /// 
+    ///
     /// Useful for calculating orbitals and other things.
     pub fn nearest_noble_gas(&self) -> Option<Element> {
         if *self <= Element::Helium {
             None
         } else if *self <= Element::Neon {
             Some(Element::Helium)
-        }
-        else if *self <= Element::Argon {
+        } else if *self <= Element::Argon {
             Some(Element::Neon)
-        }
-        else if *self <= Element::Krypton {
+        } else if *self <= Element::Krypton {
             Some(Element::Argon)
-        }
-        else if *self <= Element::Xenon {
+        } else if *self <= Element::Xenon {
             Some(Element::Krypton)
-        }
-        else if *self <= Element::Radon {
+        } else if *self <= Element::Radon {
             Some(Element::Xenon)
-        }
-        else if *self <= Element::Oganesson {
+        } else if *self <= Element::Oganesson {
             Some(Element::Radon)
-        }
-        else {
+        } else {
             panic!("Element higher than Oganesson")
         }
     }
@@ -497,20 +488,6 @@ impl Element {
         }
     }
 
-    // Data for the element from the periodic table
-    fn periodic_data(&self) -> &'static PeriodicElement {
-        let table = crate::periodictable::periodic_table();
-        let periodic_element = table.get(self.atomic_number()).unwrap();
-        periodic_element
-    }
-
-    #[cfg(test)]
-    pub (crate) fn periodic_data_owned(&self) -> PeriodicElement {
-        let table = crate::periodictable::periodic_table();
-        let periodic_element = table.get(self.atomic_number()).unwrap();
-        periodic_element.clone()
-    }
-
     // TODO: Use an array instead of a vector
     pub fn all() -> Vec<Element> {
         let mut vec = Vec::with_capacity(118);
@@ -518,6 +495,42 @@ impl Element {
             vec.push(unsafe { std::mem::transmute(i as u8) });
         }
         vec
+    }
+
+    // Data for the element from the periodic table
+    // TODO: Make private
+    #[inline(always)]
+    pub fn periodic_data(&self) -> &PeriodicData {
+        PERIODIC_TABLE.get(*self)
+    }
+
+    #[inline(always)]
+    pub fn name(&self) -> &str {
+        self.periodic_data().name
+    }
+
+    #[inline(always)]
+    pub fn period(&self) -> u8 {
+        self.periodic_data().period
+    }
+
+    #[inline(always)]
+    pub fn group(&self) -> u8 {
+        self.periodic_data().group
+    }
+
+    #[inline(always)]
+    pub fn category(&self) -> Category {
+        self.periodic_data().category
+    }
+
+    #[inline(always)]
+    pub fn block(&self) -> Block {
+        self.periodic_data().block
+    }
+
+    pub fn electron_configuration(&self) -> &ElectronConfiguration {
+        &self.periodic_data().electron_configuration
     }
 }
 
@@ -796,6 +809,69 @@ impl std::str::FromStr for Element {
             "Oganesson" => Ok(Self::Oganesson),
             _ => Err(()),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Category {
+    #[serde(rename = "actinide")]
+    Actinide,
+
+    #[serde(rename = "alkali metal")]
+    AlkaliMetal,
+
+    #[serde(rename = "alkaline earth metal")]
+    AlkalineEarthMetal,
+
+    #[serde(rename = "aiatomic nonmetal")]
+    AiatomicNonmetal,
+
+    #[serde(rename = "diatomic nonmetal")]
+    DiatomicNonmetal,
+
+    #[serde(rename = "noble gas")]
+    NobleGas,
+
+    #[serde(rename = "metalloid")]
+    Metalloid,
+
+    #[serde(rename = "polyatomic nonmetal")]
+    PolyatomicNonmetal,
+
+    #[serde(rename = "post-transition metal")]
+    PostTransitionMetal,
+
+    #[serde(rename = "lanthanide")]
+    Lanthanide,
+
+    #[serde(rename = " transition metal")]
+    TransitionMetal,
+}
+
+impl std::str::FromStr for Category {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "actinide" => Ok(Self::Actinide),
+            "alkali metal" => Ok(Self::AlkaliMetal),
+            "alkaline earth metal" => Ok(Self::AlkalineEarthMetal),
+            "aiatomic nonmetal" => Ok(Self::AiatomicNonmetal),
+            "noble gas" => Ok(Self::NobleGas),
+            "metalloid" => Ok(Self::Metalloid),
+            "polyatomic nonmetal" => Ok(Self::PolyatomicNonmetal),
+            "post-transition metal" => Ok(Self::PostTransitionMetal),
+            "lanthanide" => Ok(Self::Lanthanide),
+            "transition metal" => Ok(Self::TransitionMetal),
+            "diatomic nonmetal" => Ok(Self::DiatomicNonmetal),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<&str> for Category {
+    fn from(s: &str) -> Self {
+        s.parse().unwrap()
     }
 }
 

@@ -175,7 +175,8 @@ impl std::str::FromStr for FilledSubshell {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum Block {
     /// l = 0, Sharp
@@ -190,6 +191,28 @@ pub enum Block {
     G,
     /// l = 5, Not used for neutral elements, but useful for highly negative ions
     H,
+}
+
+impl std::str::FromStr for Block {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "s" => Ok(Block::S),
+            "p" => Ok(Block::P),
+            "d" => Ok(Block::D),
+            "f" => Ok(Block::F),
+            "g" => Ok(Block::G),
+            "h" => Ok(Block::H),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<&str> for Block {
+    fn from(s: &str) -> Self {
+        s.parse().unwrap()
+    }
 }
 
 impl Subshell {
@@ -501,6 +524,8 @@ impl ElectronConfiguration {
             if element < Element::Scandium && electrons < Element::Scandium.atomic_number() {
                 Self::aufbau(electrons)
             } else {
+                // TODO: We can reliably use aufbau for all s-block elements / where the ion stays within the s-block. 
+                // EG Group1 minus1 -> and Group2 plus1 <-
                 todo!("Handle ionic electron configurations")
             }
         }
@@ -689,7 +714,7 @@ impl std::str::FromStr for ElectronConfiguration {
                     return Err(());
                 }
                 let electron_config = element.electron_configuration();
-                subshells.extend(electron_config.subshells);
+                subshells.extend(electron_config.subshells.clone());
                 continue;
             }
 
@@ -839,8 +864,8 @@ mod tests {
         // Test all computed configurations against known configurations in the periotic table
         for element in Element::all() {
             let computed_config = element.electron_configuration();
-            let periotic_data = element.periodic_data_owned();
-            let known_config = periotic_data.electron_configuration;
+            let periotic_data = element.periodic_data();
+            let known_config = &periotic_data.electron_configuration;
             assert_eq!(
                 computed_config.to_string(),
                 known_config.to_string(),

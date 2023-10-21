@@ -1,8 +1,6 @@
-use std::sync::OnceLock;
-
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
-
+use lazy_static::lazy_static;
 extern crate dimensioned as dim;
 use dim::si;
 use dim::typenum::Quot;
@@ -12,46 +10,43 @@ type JoulePerKelvinPerMole = Quot<si::JoulePerKelvin<f64>, si::Mole<f64>>;
 type KGPerM3 = Quot<si::Kilogram<f64>, si::Meter3<f64>>;
 pub use dimensioned::unit_systems::si::f64consts::EV;
 
+use crate::Element;
 use crate::orbitals::ElectronConfiguration;
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct PeriodicElement<'a> {
+pub struct PeriodicData<'a> {
     pub name: &'a str,
     pub appearance: Option<&'a str>,
     pub atomic_mass: f64,
     boil: Option<f64>,
-    pub category: &'a str,
+    pub category: crate::Category,
     density: Option<f64>,
-    pub discovered_by: Option<&'a str>,
     melt: Option<f64>,
     molar_heat: Option<f64>,
-    pub named_by: Option<&'a str>,
-    pub number: u32,
-    pub period: u32,
-    pub group: u32,
+    pub number: u8,
+    pub period: u8,
+    pub group: u8,
     pub phase: &'a str,
     pub source: &'a str,
     pub bohr_model_image: Option<&'a str>,
     pub bohr_model_3d: Option<&'a str>,
     pub spectral_img: Option<&'a str>,
-    pub summary: &'a str,
     pub symbol: &'a str,
-    pub xpos: u32,
-    pub ypos: u32,
-    pub wxpos: u32,
-    pub wypos: u32,
+    pub xpos: u8,
+    pub ypos: u8,
+    pub wxpos: u8,
+    pub wypos: u8,
     pub shells: Vec<u32>,
     pub electron_configuration: ElectronConfiguration,
-    pub electron_configuration_semantic: ElectronConfiguration,
     pub electron_affinity: Option<f64>,
     pub electronegativity_pauling: Option<f64>,
     pub ionization_energies: Vec<f64>,
     pub cpk_hex: Option<&'a str>,
     pub image: PeriodicImage<'a>,
-    pub block: &'a str,
+    pub block: crate::Block,
 }
 
-impl<'a> PeriodicElement<'a> {
+impl<'a> PeriodicData<'a> {
     // Boiling point in Kelvin
     pub fn boil(&self) -> Option<si::Kelvin<f64>> {
         match self.boil {
@@ -102,36 +97,31 @@ pub struct PeriodicImage<'a> {
 pub struct PeriodicTable<'a> {
     #[serde(with = "BigArray")]
     #[serde(borrow = "'a")]
-    pub elements: [PeriodicElement<'a>; 119],
+    elements: [PeriodicData<'a>; 119],
 }
 
 impl PeriodicTable<'_> {
-    pub fn get(&self, atomic_number: u8) -> Option<&PeriodicElement> {
-        self.elements.get(atomic_number as usize - 1)
+    #[inline(always)]
+    pub fn get(&self, element: Element) -> &PeriodicData {
+        unsafe { self.elements.get_unchecked(element.atomic_number() as usize - 1) }
     }
 }
 
-static PERIODIC_TABLE: OnceLock<PeriodicTable<'static>> = OnceLock::new();
-
-pub fn periodic_table() -> &'static PeriodicTable<'static> {
-    PERIODIC_TABLE.get_or_init(|| {
+lazy_static! {
+    pub static ref PERIODIC_TABLE: PeriodicTable<'static> = {
         let table: PeriodicTable = include!(concat!(env!("OUT_DIR"), "/periodic_table_data.rs"));
         table
-    })
+    };
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dimensioned::cgs;
-
     use approx::assert_abs_diff_eq;
 
     #[test]
     fn hydrogen_props() {
-        let table = periodic_table();
-        let hydrogen = table.get(1).unwrap();
+        let hydrogen = PERIODIC_TABLE.get(Element::Hydrogen);
 
         // Density
         assert_eq!(hydrogen.density(), Some(0.08988 * si::KG / si::M3));
