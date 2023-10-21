@@ -475,19 +475,6 @@ impl Element {
         }
     }
 
-    pub fn is_noble_gas(&self) -> bool {
-        match *self {
-            Element::Helium => true,
-            Element::Neon => true,
-            Element::Argon => true,
-            Element::Krypton => true,
-            Element::Xenon => true,
-            Element::Radon => true,
-            Element::Oganesson => true,
-            _ => false,
-        }
-    }
-
     // TODO: Use an array instead of a vector
     pub fn all() -> Vec<Element> {
         let mut vec = Vec::with_capacity(118);

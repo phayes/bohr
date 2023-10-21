@@ -1,4 +1,4 @@
-use crate::Element;
+use crate::{Element, Category};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -710,7 +710,7 @@ impl std::str::FromStr for ElectronConfiguration {
         for part in parts {
             if let Some(caps) = NAMED_ELEMENT_REGEX.captures(part) {
                 let element: Element = caps[1].parse().unwrap();
-                if !element.is_noble_gas() {
+                if element.category() != Category::NobleGas {
                     return Err(());
                 }
                 let electron_config = element.electron_configuration();
