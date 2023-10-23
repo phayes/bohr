@@ -54,8 +54,8 @@ impl Atom {
     }
 
     #[inline(always)]
-    pub fn charge_number(&self) -> i16 {
-        self.protons() as i16 - self.electrons as i16
+    pub fn charge_number(&self) -> i8 {
+        (self.protons() as i16 - self.electrons as i16) as i8
     }
 
     #[inline(always)]
@@ -128,7 +128,7 @@ impl Atom {
     }
 
     pub fn electron_configuration(&self) -> ElectronConfiguration {
-        ElectronConfiguration::new(self.element, self.electrons)
+        ElectronConfiguration::new(self.element, self.charge_number())
     }
 }
 

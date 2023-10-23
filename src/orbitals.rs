@@ -1,4 +1,4 @@
-use crate::{Element, Category};
+use crate::{Category, Element};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -352,116 +352,6 @@ const AUFBAU_SUBSHELLS: [Subshell; 19] = [
 ];
 
 lazy_static! {
-    static ref ANOMALOUS_NEUTRAL_ELECTRON_CONFIGURATIONS: HashMap<Element, ElectronConfiguration> = {
-        let mut map = HashMap::with_capacity(20);
-
-        map.insert(
-            Element::Chromium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁵ 4s¹".parse().unwrap(),
-        );
-        map.insert(
-            Element::Copper,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s¹".parse().unwrap(),
-        );
-        map.insert(
-            Element::Niobium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d⁴ 5s¹".parse().unwrap(),
-        );
-        map.insert(
-            Element::Molybdenum,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d5 5s1".parse().unwrap(),
-        );
-        map.insert(
-            Element::Ruthenium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d7 5s1".parse().unwrap(),
-        );
-        map.insert(
-            Element::Rhodium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d8 5s1".parse().unwrap(),
-        );
-        map.insert(
-            Element::Palladium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d10".parse().unwrap(),
-        );
-        map.insert(
-            Element::Silver,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d10 5s1".parse().unwrap(),
-        );
-        map.insert(
-            Element::Lanthanum,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 5d1 6s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Cerium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f1 5d1 6s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Gadolinium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f7 5d1 6s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Platinum,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d9 6s1"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Gold,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d10 6s1"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Actinium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d10 6s2 6p6 6d1 7s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Thorium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d10 6s2 6p6 6d2 7s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Protactinium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d10 6s2 6p6 5f2 6d1 7s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Uranium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d10 6s2 6p6 5f3 6d1 7s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Neptunium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d10 6s2 6p6 5f4 6d1 7s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Curium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f14 5d10 6s2 6p6 5f7 6d1 7s2"
-                .parse()
-                .unwrap(),
-        );
-        map.insert(
-            Element::Lawrencium,
-            "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 4f¹⁴ 5s² 5p⁶ 5d¹⁰ 5f¹⁴ 6s² 6p⁶ 7s² 7p¹"
-                .parse()
-                .unwrap(),
-        );
-
-        map
-    };
     static ref NOBLE_GAS_ELECTRON_CONFIGURATIONS: Vec<(Element, ElectronConfiguration)> = {
         let mut nobles = Vec::with_capacity(7);
 
@@ -504,30 +394,19 @@ pub struct ElectronConfiguration {
 }
 
 impl ElectronConfiguration {
-    pub fn new(element: Element, electrons: u8) -> Self {
-        // If it's a neutral element, use aufbau with known exceptions
-        if electrons == element.atomic_number() {
-            if electrons < Element::Scandium.atomic_number() {
-                Self::aufbau(electrons)
-            } else {
-                if let Some(electron_config) =
-                    ANOMALOUS_NEUTRAL_ELECTRON_CONFIGURATIONS.get(&element)
-                {
-                    electron_config.clone()
-                } else {
-                    Self::aufbau(electrons)
-                }
-            }
+    pub fn new(element: Element, charge: i8) -> Self {
+        // If it's a neutral element, use known configurations
+        if charge == 0 {
+            element.electron_configuration().clone()
         }
-        // If it's an ion, we can use aufbau for lower elements, otherwise it's still a TODO
-        else {
-            if element < Element::Scandium && electrons < Element::Scandium.atomic_number() {
-                Self::aufbau(electrons)
-            } else {
-                // TODO: We can reliably use aufbau for all s-block elements / where the ion stays within the s-block. 
-                // EG Group1 minus1 -> and Group2 plus1 <-
-                todo!("Handle ionic electron configurations")
-            }
+        // If it's an ion, we can use aufbau for group 1 & 2 elements, and for the first 20 elements
+        else if element.group() == 1 && charge == -1
+            || element.group() == 2 && charge == 1
+            || (element < Element::Scandium && element.atomic_number() as i8 - charge < 21)
+        {
+            ElectronConfiguration::aufbau((element.atomic_number() as i8 - charge) as u8)
+        } else {
+            todo!("Handle ions with more than 20 electrons")
         }
     }
 
