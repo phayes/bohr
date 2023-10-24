@@ -1,4 +1,4 @@
-use crate::{Category, Element};
+use crate::{Category, Element, Block};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -186,46 +186,6 @@ impl std::str::FromStr for FilledSubshell {
             subshell: Subshell::new(quantum_number, block),
             num_electrons: electrons,
         })
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
-#[serde(rename_all = "lowercase")]
-#[repr(u8)]
-pub enum Block {
-    /// l = 0, Sharp
-    S = 0,
-    /// l = 1, Principal
-    P,
-    /// l = 2, Diffuse
-    D,
-    /// l = 3, Fundamental
-    F,
-    /// l = 4, Not used for neutral elements, but useful for highly negative ions
-    G,
-    /// l = 5, Not used for neutral elements, but useful for highly negative ions
-    H,
-}
-
-impl std::str::FromStr for Block {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "s" => Ok(Block::S),
-            "p" => Ok(Block::P),
-            "d" => Ok(Block::D),
-            "f" => Ok(Block::F),
-            "g" => Ok(Block::G),
-            "h" => Ok(Block::H),
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<&str> for Block {
-    fn from(s: &str) -> Self {
-        s.parse().unwrap()
     }
 }
 
@@ -525,16 +485,18 @@ impl ElectronConfiguration {
     }
 
     /// Get the nearest noble gas for this electron configuration
+    /// 
+    /// This may produce inaccurate results if the subshells are not sorted in fill-order.
     pub fn noble_gas(&self) -> Option<Element> {
         for (noble, noble_config) in &*NOBLE_GAS_ELECTRON_CONFIGURATIONS { 
-            if self.contains(noble_config) && self.subshells != noble_config.subshells {
+            if self.contains(noble_config) && self != noble_config {
                 return Some(*noble);
             }
         }
         None
     }
 
-    /// Check if self contains the other electron configuration
+    /// Check if self contains the other electron configuration. 
     pub fn contains(&self, other: &Self) -> bool {
         if other.len() > self.len() {
             return false;

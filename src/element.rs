@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     periodictable::PERIODIC_TABLE, orbitals::ElectronConfiguration,
-    periodictable::PeriodicData, Block,
+    periodictable::PeriodicData,
+    Block,
 };
 
 pub struct Atom {
