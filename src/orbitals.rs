@@ -2,7 +2,6 @@ use crate::{Category, Element};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::collections::HashMap;
 use std::num::NonZeroU8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,6 +72,21 @@ impl FilledSubshell {
         // Everything is at least half-full, how many electrons left to fill up?
         let remaining_electrons = self.num_electrons - self.subshell.num_orbitals();
         self.subshell.num_orbitals() - remaining_electrons
+    }
+    
+    #[inline(always)]
+    pub fn quantum_number(&self) -> u8 {
+        self.subshell.quantum_number()
+    }
+
+    #[inline(always)]
+    pub fn block(&self) -> Block {
+        self.subshell.block()
+    }
+
+    #[inline(always)]
+    pub fn l(&self) -> u8 {
+        self.subshell.l
     }
 }
 
@@ -390,7 +404,7 @@ lazy_static! {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ElectronConfiguration {
-    pub subshells: Vec<FilledSubshell>,
+    subshells: Vec<FilledSubshell>,
 }
 
 impl ElectronConfiguration {
@@ -451,6 +465,26 @@ impl ElectronConfiguration {
         }
     }
 
+    /// Get a single shell by quantum number
+    pub fn shell(&self, quantum_number: u8) -> Self {
+        let subshells = self
+            .subshells
+            .iter()
+            .filter(|filled_subshell| filled_subshell.subshell.quantum_number() == quantum_number)
+            .cloned()
+            .collect();
+        Self { subshells }
+    }
+
+    /// Get number of unpaired electrons
+    pub fn unpaired_electrons(&self) -> u8 {
+        self.subshells
+            .iter()
+            .map(|filled_subshell| filled_subshell.unpaired_electrons())
+            .sum()
+    }
+
+    /// Get the last subshell
     pub fn last_subshell(&self) -> FilledSubshell {
         *self.subshells.last().unwrap()
     }
@@ -463,17 +497,16 @@ impl ElectronConfiguration {
     }
 
     pub fn valence_electrons(&self) -> u8 {
-        if self.num_electrons() >= 21 {
-            todo!("Handle valence for configurations with more than 20 electrons")
+        if let Some(noble) = self.noble_gas() {
+            let remaining_electron_config = self.diff(noble.electron_configuration());
+            return remaining_electron_config
+                .iter()
+                .map(|subshell: &&FilledSubshell| subshell.num_electrons)
+                .sum();
         }
-
-        // Find the quantum number of the last subshell, and add up all electrons in all subshells that share that quantum number
-        let last_n = self.last_subshell().subshell.n;
-        self.subshells
-            .iter()
-            .filter(|filled_subshell| filled_subshell.subshell.n == last_n)
-            .map(|filled_subshell| filled_subshell.num_electrons)
-            .sum()
+        else {
+            return self.num_electrons()
+        }
     }
 
     pub fn into_subshells(self) -> Vec<FilledSubshell> {
@@ -489,6 +522,16 @@ impl ElectronConfiguration {
 
     pub fn len(&self) -> usize {
         self.subshells.len()
+    }
+
+    /// Get the nearest noble gas for this electron configuration
+    pub fn noble_gas(&self) -> Option<Element> {
+        for (noble, noble_config) in &*NOBLE_GAS_ELECTRON_CONFIGURATIONS { 
+            if self.contains(noble_config) && self.subshells != noble_config.subshells {
+                return Some(*noble);
+            }
+        }
+        None
     }
 
     /// Check if self contains the other electron configuration
@@ -550,23 +593,18 @@ impl std::iter::IntoIterator for ElectronConfiguration {
 
 impl std::fmt::Display for ElectronConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut noble_notation = false;
-        for (noble, noble_config) in &*NOBLE_GAS_ELECTRON_CONFIGURATIONS {
-            if self.contains(noble_config) && self.subshells != noble_config.subshells {
-                write!(f, "[{}] ", noble.symbol())?;
 
-                for (i, filled_subshell) in self.diff(noble_config).iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " ")?;
-                    }
-                    write!(f, "{}", filled_subshell)?;
+        if let Some(noble) = self.noble_gas() {
+            write!(f, "[{}] ", noble.symbol())?;
+
+            for (i, filled_subshell) in self.diff(noble.electron_configuration()).iter().enumerate() {
+                if i > 0 {
+                    write!(f, " ")?;
                 }
-                noble_notation = true;
-                break;
+                write!(f, "{}", filled_subshell)?;
             }
         }
-
-        if !noble_notation {
+        else {
             write!(f, "{}", self.long_form())?;
         }
 

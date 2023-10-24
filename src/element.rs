@@ -926,20 +926,15 @@ mod tests {
 
     #[test]
     pub fn test_valence_electron() {
-        for atomic_number in 1u8..=20u8 {
-            let element = Element::try_from(atomic_number).unwrap();
+        for element in Element::all() {
             let atom = element.atom();
             let electron_configuration = element.electron_configuration();
             assert_eq!(
                 electron_configuration.valence_electrons(),
-                atom.valence_electrons()
+                atom.valence_electrons(),
+                "{} mismatch in number of valence electrons",
+                element
             );
-
-            // TODO: Expand beyond Scadium
-            // We need to start taking into account energy levels (which vary by atomic number starting at 21)
-            // See https://www.quora.com/How-many-valence-electrons-does-scandium-have
-            //     https://sci-hub.se/https://doi.org/10.1021/ed8001286
-            //     https://edu.rsc.org/feature/the-trouble-with-the-aufbau-principle/2000133.article
         }
     }
 }
