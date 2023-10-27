@@ -1,13 +1,15 @@
 use std::fmt::Display;
 
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    periodictable::PERIODIC_TABLE, orbitals::ElectronConfiguration,
-    periodictable::PeriodicData,
+    orbitals::ElectronConfiguration, periodictable::PeriodicData, periodictable::PERIODIC_TABLE,
     Block,
 };
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Atom {
     pub element: Element,
 
@@ -19,6 +21,14 @@ pub struct Atom {
 }
 
 impl Atom {
+    pub fn new(element: Element) -> Self {
+        Self {
+            element,
+            neutrons: None,
+            electrons: element.atomic_number(),
+        }
+    }
+
     #[inline(always)]
     pub fn protons(&self) -> u8 {
         self.element.atomic_number()
@@ -160,6 +170,56 @@ impl std::fmt::Display for Atom {
         }
 
         Ok(())
+    }
+}
+
+impl std::str::FromStr for Atom {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        lazy_static! {
+            static ref ATOM_REGEX: Regex =
+                Regex::new(r"^(?<isotope>[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?(?<element>[A-Z][a-z]?[a-z]?)(?<charge>[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+)?$").unwrap();
+        }
+
+        let captures = ATOM_REGEX.captures(s).ok_or(())?;
+
+        let element: Element = captures.name("element").ok_or(())?.as_str().parse()?;
+        let electrons = if let Some(charge) = captures.name("charge") {
+            let charge = crate::util::regular_case(charge.as_str());
+            let charge: i8 = match charge.as_str() {
+                "-" => -1,
+                "+" => 1,
+                _ => {
+                    if charge.ends_with("-") {
+                        let abs_charge: i8 = charge[..charge.len() - 1].parse().map_err(|_| ())?;
+                        -abs_charge
+                    } else if charge.ends_with("+") {
+                        charge[..charge.len() - 1].parse().map_err(|_| ())?
+                    } else {
+                        charge.parse().map_err(|_| ())?
+                    }
+                }
+            };
+
+            (element.atomic_number() as i16 - charge as i16) as u8
+        } else {
+            element.atomic_number()
+        };
+
+        let mut neutrons = None;
+        if let Some(isotope) = captures.name("isotope") {
+            let atomic_weight: u16 = crate::util::regular_case(isotope.as_str())
+                .parse()
+                .map_err(|_| ())?;
+            neutrons = Some((atomic_weight - element.atomic_number() as u16) as u8);
+        }
+
+        Ok(Atom {
+            element,
+            neutrons,
+            electrons,
+        })
     }
 }
 
@@ -874,55 +934,74 @@ mod tests {
         let hydrogen_atom = hydrogen.atom();
         assert_eq!(hydrogen_atom.is_ion(), false);
         assert_eq!(format!("{}", hydrogen_atom), "H");
+        assert_eq!("H".parse::<Atom>().unwrap(), hydrogen_atom);
 
         let hydrogen_isotope = hydrogen.isotope(1);
         assert_eq!(hydrogen_isotope.is_ion(), false);
         assert_eq!(format!("{}", hydrogen_isotope), "¹H");
+        assert_eq!("¹H".parse::<Atom>().unwrap(), hydrogen_isotope);
 
         let deuterium = Element::Hydrogen.isotope(2);
         assert_eq!(deuterium.is_ion(), false);
         assert_eq!(format!("{}", deuterium), "²H");
+        assert_eq!("²H".parse::<Atom>().unwrap(), deuterium);
 
         let tritium = Element::Hydrogen.isotope(3);
         assert_eq!(tritium.is_ion(), false);
         assert_eq!(format!("{}", tritium), "³H");
+        assert_eq!("³H".parse::<Atom>().unwrap(), tritium);
 
         let hydrogen_anion = hydrogen.ion(-1);
         assert_eq!(hydrogen_anion.is_ion(), true);
         assert_eq!(hydrogen_anion.is_anion(), true);
         assert_eq!(hydrogen_anion.is_cation(), false);
         assert_eq!(format!("{}", hydrogen_anion), "H⁻");
+        assert_eq!("H⁻".parse::<Atom>().unwrap(), hydrogen_anion);
+        assert_eq!("H¹⁻".parse::<Atom>().unwrap(), hydrogen_anion);
+        assert_eq!("H⁻¹".parse::<Atom>().unwrap(), hydrogen_anion);
 
         let hydrogen_cation = hydrogen.ion(1);
         assert_eq!(hydrogen_cation.is_ion(), true);
         assert_eq!(hydrogen_cation.is_anion(), false);
         assert_eq!(hydrogen_cation.is_cation(), true);
         assert_eq!(format!("{}", hydrogen_cation), "H⁺");
+        assert_eq!("H⁺".parse::<Atom>().unwrap(), hydrogen_cation);
+        assert_eq!("H¹⁺".parse::<Atom>().unwrap(), hydrogen_cation);
+        assert_eq!("H⁺¹".parse::<Atom>().unwrap(), hydrogen_cation);
 
         let hydrogen_isotope_ion = hydrogen.isotope_ion(2, -1);
         assert_eq!(hydrogen_isotope_ion.is_ion(), true);
         assert_eq!(hydrogen_isotope_ion.is_anion(), true);
         assert_eq!(hydrogen_isotope_ion.is_cation(), false);
         assert_eq!(format!("{}", hydrogen_isotope_ion), "²H⁻");
+        assert_eq!("²H⁻".parse::<Atom>().unwrap(), hydrogen_isotope_ion);
+        assert_eq!("²H¹⁻".parse::<Atom>().unwrap(), hydrogen_isotope_ion);
+        assert_eq!("²H⁻¹".parse::<Atom>().unwrap(), hydrogen_isotope_ion);
 
         let magnesium = Element::Magnesium;
         let magnesium_atom = magnesium.atom();
         assert_eq!(format!("{}", magnesium_atom), "Mg");
+        assert_eq!("Mg".parse::<Atom>().unwrap(), magnesium_atom);
 
         let magnesium_isotope = magnesium.isotope(24);
         assert_eq!(format!("{}", magnesium_isotope), "²⁴Mg");
+        assert_eq!("²⁴Mg".parse::<Atom>().unwrap(), magnesium_isotope);
 
         let magnesium_anion = magnesium.ion(-2);
         assert_eq!(magnesium_anion.is_ion(), true);
         assert_eq!(magnesium_anion.is_anion(), true);
         assert_eq!(magnesium_anion.is_cation(), false);
         assert_eq!(format!("{}", magnesium_anion), "Mg²⁻");
+        assert_eq!("Mg²⁻".parse::<Atom>().unwrap(), magnesium_anion);
+        assert_eq!("Mg⁻²".parse::<Atom>().unwrap(), magnesium_anion);
 
         let magnesium_cation = magnesium.ion(2);
         assert_eq!(magnesium_cation.is_ion(), true);
         assert_eq!(magnesium_cation.is_anion(), false);
         assert_eq!(magnesium_cation.is_cation(), true);
         assert_eq!(format!("{}", magnesium_cation), "Mg²⁺");
+        assert_eq!("Mg²⁺".parse::<Atom>().unwrap(), magnesium_cation);
+        assert_eq!("Mg⁺²".parse::<Atom>().unwrap(), magnesium_cation);
     }
 
     #[test]

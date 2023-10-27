@@ -3,11 +3,14 @@
 //! It is currently a personal vehicle for myself to learn undergraduate-level chemistry. 
 //! It is not currently reocommended for use in production. 
 mod element;
-pub use element::*;
 mod periodictable;
+pub mod orbitals;
+pub mod simple_molecule;
+
+pub use element::*;
 pub(crate) mod util;
 // pub mod reactant;
-pub mod orbitals;
+
 pub use element::Category;
 
 /// Common enums
