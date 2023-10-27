@@ -3,11 +3,8 @@ use serde_big_array::BigArray;
 use lazy_static::lazy_static;
 extern crate dimensioned as dim;
 use dim::si;
-use dim::typenum::Quot;
 use dimensioned::f64prefixes::KILO;
 
-type JoulePerKelvinPerMole = Quot<si::JoulePerKelvin<f64>, si::Mole<f64>>;
-type KGPerM3 = Quot<si::Kilogram<f64>, si::Meter3<f64>>;
 pub use dimensioned::unit_systems::si::f64consts::EV;
 
 use crate::Element;
@@ -64,14 +61,14 @@ impl<'a> PeriodicData<'a> {
     }
 
     // Density (at STP) in kg/m^3 (equivilent to g/L)
-    pub fn density(&self) -> Option<KGPerM3> {
+    pub fn density(&self) -> Option<crate::KGPerM3<f64>> {
         match self.density {
             Some(elem_density) => Some(elem_density * si::KG / si::M3),
             None => None,
         }
     }
 
-    pub fn molar_heat(&self) -> Option<JoulePerKelvinPerMole> {
+    pub fn molar_heat(&self) -> Option<crate::JoulePerKelvinPerMole<f64>> {
         match self.molar_heat {
             Some(molar_heat) => Some(molar_heat * si::J / si::K / si::MOL),
             None => None,

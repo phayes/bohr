@@ -7,11 +7,15 @@ mod periodictable;
 pub mod orbitals;
 pub mod simple_molecule;
 
+use dimensioned::{si, typenum::Quot};
 pub use element::*;
 pub(crate) mod util;
 // pub mod reactant;
 
 pub use element::Category;
+
+pub type JoulePerKelvinPerMole<T> = Quot<si::JoulePerKelvin<T>, si::Mole<T>>;
+pub type KGPerM3<T> = Quot<si::Kilogram<T>, si::Meter3<T>>;
 
 /// Common enums
 use serde::{Deserialize, Serialize};

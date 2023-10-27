@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use dimensioned::si;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -546,9 +547,8 @@ impl Element {
     }
 
     // Data for the element from the periodic table
-    // TODO: Make private
     #[inline(always)]
-    pub fn periodic_data(&self) -> &PeriodicData {
+    pub(crate) fn periodic_data(&self) -> &PeriodicData {
         PERIODIC_TABLE.get(*self)
     }
 
@@ -577,8 +577,34 @@ impl Element {
         self.periodic_data().block
     }
 
+    #[inline(always)]
     pub fn electron_configuration(&self) -> &ElectronConfiguration {
         &self.periodic_data().electron_configuration
+    }
+
+    #[inline(always)]
+    pub fn boil(&self) -> Option<si::Kelvin<f64>> {
+        self.periodic_data().boil()
+    }
+
+    #[inline(always)]
+    pub fn melt(&self) -> Option<si::Kelvin<f64>> {
+        self.periodic_data().melt()
+    }
+
+    #[inline(always)]
+    pub fn density(&self) -> Option<crate::KGPerM3<f64>> {
+        self.periodic_data().density()
+    }
+
+    #[inline(always)]
+    pub fn molar_heat(&self) -> Option<crate::JoulePerKelvinPerMole<f64>> {
+        self.periodic_data().molar_heat()
+    }
+
+    #[inline(always)]
+    pub fn electron_affinity(&self) -> Option<si::JoulePerMole<f64>> {
+        self.periodic_data().electron_affinity()
     }
 }
 

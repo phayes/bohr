@@ -1,9 +1,11 @@
 use crate::{util, Atom};
+use lazy_static::lazy_static;
+use regex::Regex;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SimpleMoleculePart {
     Atom(Atom),
-    CompoundPart(Box<SimpleMolecule>),
+    Compound(Box<SimpleMolecule>),
 }
 
 /// A simple moledule is a molecule that can be represented as a simple formula and does not need a more complex representation.
@@ -39,7 +41,7 @@ impl SimpleMolecule {
         self.charge_number += molecule.charge_number;
         molecule.charge_number = 0;
 
-        let molecule = SimpleMoleculePart::CompoundPart(Box::new(molecule));
+        let molecule = SimpleMoleculePart::Compound(Box::new(molecule));
         let mut added = false;
         self.parts.iter_mut().for_each(|(part, c)| {
             if part == &molecule {
@@ -54,11 +56,11 @@ impl SimpleMolecule {
 
     /// For molecules that contain carbon, the order is carbon, hydrogen, then all other elements in alphabetical order of their chemical symbols.
     /// If the structure does not contain carbon, write all elements, including hydrogen, in alphabetical order of their chemical symbols.
-    /// Place all Compound Parts at the end
+    /// Place all Compound parts at the end
     pub fn sort(&mut self) {
         let contains_carbon = self.parts.iter().any(|(part, _)| match part {
             SimpleMoleculePart::Atom(atom) => atom.element == crate::Element::Carbon,
-            SimpleMoleculePart::CompoundPart(_) => false,
+            SimpleMoleculePart::Compound(_) => false,
         });
 
         self.parts
@@ -80,10 +82,10 @@ impl SimpleMolecule {
                         atom_a.element.symbol().cmp(&atom_b.element.symbol())
                     }
                 }
-                (SimpleMoleculePart::CompoundPart(_), SimpleMoleculePart::Atom(_)) => {
+                (SimpleMoleculePart::Compound(_), SimpleMoleculePart::Atom(_)) => {
                     std::cmp::Ordering::Greater
                 }
-                (SimpleMoleculePart::Atom(_), SimpleMoleculePart::CompoundPart(_)) => {
+                (SimpleMoleculePart::Atom(_), SimpleMoleculePart::Compound(_)) => {
                     std::cmp::Ordering::Less
                 }
                 _ => std::cmp::Ordering::Equal,
@@ -103,7 +105,7 @@ impl std::fmt::Display for SimpleMolecule {
                 };
                 result.push_str(&format!("{}{}", atom, count));
             }
-            SimpleMoleculePart::CompoundPart(molecule) => {
+            SimpleMoleculePart::Compound(molecule) => {
                 let count = if *c == 1 {
                     "".to_string()
                 } else {
@@ -129,6 +131,47 @@ impl std::fmt::Display for SimpleMolecule {
     }
 }
 
+impl std::str::FromStr for SimpleMolecule {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        lazy_static! {
+            static ref SIMPLE_MOLECULE_REGEX: Regex = Regex::new(r"(((?<atom>([⁰¹²³⁴⁵⁶⁷⁸⁹]+)?([A-Z][a-z]?))(?<atom_count>[₀₁₂₃₄₅₆₇₈₉0-9]+)?)|(\((?<compound>.+)\)(?<compound_count>[₀₁₂₃₄₅₆₇₈₉0-9]+)?))").unwrap();
+        }
+
+        let mut molecule = SimpleMolecule::default();
+
+        let parts: Vec<&str> = SIMPLE_MOLECULE_REGEX.find_iter(s).map(|m| m.as_str()).collect();
+
+        for part in parts {
+            let caps = SIMPLE_MOLECULE_REGEX.captures(part).unwrap();
+            if let Some(atom) = caps.name("atom") {
+                let atom: Atom = atom.as_str().parse()?;
+                let count = match caps.name("atom_count") {
+                    Some(count) => util::regular_case(count.as_str()).parse().map_err(|_| ())?,
+                    None => 1,
+                };
+                molecule.add_atom(atom, count);
+            }
+            else if let Some(compound) = caps.name("compound") {
+                let compound: SimpleMolecule = compound.as_str().parse()?;
+                let count = match caps.name("compound_count") {
+                    Some(count) => util::regular_case(count.as_str()).parse().map_err(|_| ())?,
+                    None => 1,
+                };
+                molecule.add_molecule(compound, count);
+            }
+        }
+
+        // TODO Capture charge
+        //      Add charge as another OR statement in regex that ends with a $ terminator
+
+        molecule.sort();
+
+        Ok(molecule)
+    }
+}
+
 #[cfg(test)]
 
 mod tests {
@@ -144,6 +187,7 @@ mod tests {
         molecule.add_atom(Element::Oxygen.atom(), 1);
         molecule.sort();
         assert_eq!(molecule.to_string(), "H₂O");
+        assert_eq!("H₂O".parse::<SimpleMolecule>().unwrap(), molecule);
 
         // Heavy Water
         let mut molecule = SimpleMolecule::default();
@@ -155,6 +199,7 @@ mod tests {
         molecule.add_atom(Element::Oxygen.atom(), 1);
         molecule.sort();
         assert_eq!(molecule.to_string(), "²H₂O");
+        assert_eq!("²H₂O".parse::<SimpleMolecule>().unwrap(), molecule);
 
         // Organic Molecule
         let mut molecule = SimpleMolecule::default();
@@ -164,5 +209,6 @@ mod tests {
         molecule.add_molecule(molecule.clone(), 1);
         molecule.sort();
         assert_eq!(molecule.to_string(), "CH₄O₂(CH₄O₂)");
+        assert_eq!("CH₄O₂(CH₄O₂)".parse::<SimpleMolecule>().unwrap(), molecule);
     }
 }
