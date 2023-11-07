@@ -116,15 +116,23 @@ impl std::fmt::Display for SimpleMolecule {
         });
 
         if self.charge_number > 0 {
-            result.push_str(&format!(
-                "⁺{}",
-                util::superscript_number(self.charge_number as u8)
-            ));
+            if self.charge_number == 1 {
+                result.push_str("⁺");
+            } else {
+                result.push_str(&format!(
+                    "⁺{}",
+                    util::superscript_number(self.charge_number as u8)
+                ));
+            }
         } else if self.charge_number < 0 {
-            result.push_str(&format!(
-                "⁻{}",
-                util::superscript_number(self.charge_number.abs() as u8)
-            ));
+            if self.charge_number == -1 {
+                result.push_str("⁻");
+            } else {
+                result.push_str(&format!(
+                    "⁻{}",
+                    util::superscript_number(self.charge_number.abs() as u8)
+                ));
+            }
         }
 
         write!(f, "{}", result)
@@ -136,12 +144,15 @@ impl std::str::FromStr for SimpleMolecule {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         lazy_static! {
-            static ref SIMPLE_MOLECULE_REGEX: Regex = Regex::new(r"(((?<atom>([⁰¹²³⁴⁵⁶⁷⁸⁹]+)?([A-Z][a-z]?))(?<atom_count>[₀₁₂₃₄₅₆₇₈₉0-9]+)?)|(\((?<compound>.+)\)(?<compound_count>[₀₁₂₃₄₅₆₇₈₉0-9]+)?))").unwrap();
+            static ref SIMPLE_MOLECULE_REGEX: Regex = Regex::new(r"(((?<atom>([⁰¹²³⁴⁵⁶⁷⁸⁹]+)?([A-Z][a-z]?))(?<atom_count>[₀₁₂₃₄₅₆₇₈₉0-9]+)?)|(\((?<compound>.+)\)(?<compound_count>[₀₁₂₃₄₅₆₇₈₉0-9]+)?)|(?<charge>[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+))").unwrap();
         }
 
         let mut molecule = SimpleMolecule::default();
 
-        let parts: Vec<&str> = SIMPLE_MOLECULE_REGEX.find_iter(s).map(|m| m.as_str()).collect();
+        let parts: Vec<&str> = SIMPLE_MOLECULE_REGEX
+            .find_iter(s)
+            .map(|m| m.as_str())
+            .collect();
 
         for part in parts {
             let caps = SIMPLE_MOLECULE_REGEX.captures(part).unwrap();
@@ -152,20 +163,33 @@ impl std::str::FromStr for SimpleMolecule {
                     None => 1,
                 };
                 molecule.add_atom(atom, count);
-            }
-            else if let Some(compound) = caps.name("compound") {
+            } else if let Some(compound) = caps.name("compound") {
                 let compound: SimpleMolecule = compound.as_str().parse()?;
                 let count = match caps.name("compound_count") {
                     Some(count) => util::regular_case(count.as_str()).parse().map_err(|_| ())?,
                     None => 1,
                 };
                 molecule.add_molecule(compound, count);
+            } else if let Some(charge) = caps.name("charge") {
+                let charge = crate::util::regular_case(charge.as_str());
+                let charge: i8 = match charge.as_str() {
+                    "-" => -1,
+                    "+" => 1,
+                    _ => {
+                        if charge.ends_with("-") {
+                            let abs_charge: i8 =
+                                charge[..charge.len() - 1].parse().map_err(|_| ())?;
+                            -abs_charge
+                        } else if charge.ends_with("+") {
+                            charge[..charge.len() - 1].parse().map_err(|_| ())?
+                        } else {
+                            charge.parse().map_err(|_| ())?
+                        }
+                    }
+                };
+                molecule.charge_number += charge;
             }
         }
-
-        // TODO Capture charge
-        //      Add charge as another OR statement in regex that ends with a $ terminator
-
         molecule.sort();
 
         Ok(molecule)
@@ -191,11 +215,14 @@ mod tests {
 
         // Heavy Water
         let mut molecule = SimpleMolecule::default();
-        molecule.add_atom(Atom {
-            element: Element::Hydrogen,
-            electrons: 1,
-            neutrons: Some(1),
-        }, 2);
+        molecule.add_atom(
+            Atom {
+                element: Element::Hydrogen,
+                electrons: 1,
+                neutrons: Some(1),
+            },
+            2,
+        );
         molecule.add_atom(Element::Oxygen.atom(), 1);
         molecule.sort();
         assert_eq!(molecule.to_string(), "²H₂O");
@@ -206,9 +233,25 @@ mod tests {
         molecule.add_atom(Element::Carbon.atom(), 1);
         molecule.add_atom(Element::Hydrogen.atom(), 4);
         molecule.add_atom(Element::Oxygen.atom(), 2);
-        molecule.add_molecule(molecule.clone(), 1);
+        molecule.add_molecule(molecule.clone(), 2);
         molecule.sort();
-        assert_eq!(molecule.to_string(), "CH₄O₂(CH₄O₂)");
-        assert_eq!("CH₄O₂(CH₄O₂)".parse::<SimpleMolecule>().unwrap(), molecule);
+        assert_eq!(molecule.to_string(), "CH₄O₂(CH₄O₂)₂");
+        assert_eq!("CH₄O₂(CH₄O₂)₂".parse::<SimpleMolecule>().unwrap(), molecule);
+
+        // Charged Molecules
+        let mut molecule = SimpleMolecule::default();
+        molecule.add_atom(Element::Hydrogen.atom(), 1);
+        molecule.add_atom(Element::Oxygen.atom(), 1);
+        molecule.charge_number = -1;
+        molecule.sort();
+        assert_eq!(molecule, "OH⁻".parse().unwrap());
+
+        let mut molecule = SimpleMolecule::default();
+        molecule.add_atom(Element::Hydrogen.atom(), 1);
+        molecule.add_atom(Element::Oxygen.atom(), 1);
+        molecule.charge_number = -2;
+        molecule.sort();
+        assert_eq!(molecule, "OH⁻²".parse().unwrap());
+        assert_eq!(molecule, "OH²⁻".parse().unwrap());
     }
 }
